@@ -30,6 +30,27 @@ def generate_token(user_id, expires_in=300):
 @auth_bp.route('/otp/request', methods=['POST'])
 @limiter.limit("3 per 10 minutes", key_func=get_email_key)
 def request_otp():
+    """
+    Request an OTP for Login/Registration
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              example: user@example.com
+    responses:
+      200:
+        description: OTP sent successfully
+      400:
+        description: Email is required
+    """
     try:
         data = request.get_json()
         if not data:
@@ -67,6 +88,39 @@ def request_otp():
 
 @auth_bp.route('/otp/verify', methods=['POST'])
 def verify_otp():
+    """
+    Verify OTP and obtain JWT Tokens
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              example: user@example.com
+            otp:
+              type: string
+              example: "123456"
+    responses:
+      200:
+        description: Login successful
+        schema:
+          type: object
+          properties:
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+            user_id:
+              type: integer
+      401:
+        description: Invalid OTP
+    """
     try:
         data = request.get_json()
         if not data:

@@ -1,29 +1,31 @@
 # Secure Task Orchestrator (Flask)
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rudrajosh/secure-task-orchestrator)
+
 ## Project Overview
 
 A secure, production-grade RESTful API built with Flask for managing personal tasks. Key features include Email-OTP authentication, JWT-based security, and resource-level authorization.
 
 ## Features
 
-- **Authentication**: Secure Email-OTP flow. No passwords stored.
-- **Task Management**: CRUD operations for tasks with strict ownership enforcement.
-- **Security**:
-  - JWT Access (15 min) and Refresh (7 days) tokens.
-  - Hashed OTPs.
-  - Rate limiting on API endpoints.
-  - Input validation and sanitization.
-- **Audit Logging**: Tracks authentication events and data modifications.
-- **Architecture**:
-  - Application Factory Pattern.
-  - Blueprints for modularity (`auth`, `tasks`).
-  - SQLAlchemy ORM.
+-   **Authentication**: Secure Email-OTP flow. No passwords stored.
+-   **Task Management**: CRUD operations for tasks with strict ownership enforcement.
+-   **Security**:
+    -   JWT Access (15 min) and Refresh (7 days) tokens.
+    -   Hashed OTPs.
+    -   Rate limiting on API endpoints.
+    -   Input validation and sanitization.
+-   **Audit Logging**: Tracks authentication events and data modifications.
+-   **Architecture**:
+    -   Application Factory Pattern.
+    -   Blueprints for modularity (`auth`, `tasks`).
+    -   SQLAlchemy ORM.
 
 ## Setup Instructions
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository_url>
+    git clone https://github.com/rudrajosh/secure-task-orchestrator.git
     cd assignment
     ```
 
@@ -64,6 +66,10 @@ A secure, production-grade RESTful API built with Flask for managing personal ta
     flask run
     ```
     The API will be available at `http://localhost:5000`.
+
+## Deployment
+
+Detailed deployment instructions for Render are available in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## API Endpoints
 

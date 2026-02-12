@@ -1,6 +1,7 @@
 from flask import Flask
 from config import Config
 from app.extensions import db, migrate, mail, limiter
+from flasgger import Swagger
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -11,6 +12,13 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     mail.init_app(app)
     limiter.init_app(app)
+    
+    # Swagger Configuration
+    app.config['SWAGGER'] = {
+        'title': 'Secure Task Orchestrator API',
+        'uiversion': 3
+    }
+    swagger = Swagger(app)
 
     # Register Blueprints
     from app.auth import auth_bp

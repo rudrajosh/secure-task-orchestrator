@@ -19,6 +19,36 @@ def validate_task_data(data):
 @token_required
 @limiter.limit("100 per minute")
 def create_task(current_user):
+    """
+    Create a new task
+    ---
+    tags:
+      - Tasks
+    security:
+      - Bearer: []
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+        description: Bearer <access_token>
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            status:
+              type: string
+              enum: [Pending, In-Progress, Completed]
+    responses:
+      201:
+        description: Task created
+    """
     data = request.get_json()
     is_valid, error = validate_task_data(data)
     if not is_valid:
@@ -51,6 +81,22 @@ def create_task(current_user):
 @token_required
 @limiter.limit("100 per minute")
 def get_tasks(current_user):
+    """
+    Get all tasks for current user
+    ---
+    tags:
+      - Tasks
+    security:
+      - Bearer: []
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+    responses:
+      200:
+        description: List of tasks
+    """
     # Pagination could be added but assignment didn't explicitly ask.
     # We filter by author=current_user implicitly by querying current_user.tasks
     tasks = current_user.tasks.all() # tasks is a dynamic relationship
@@ -71,6 +117,28 @@ def get_tasks(current_user):
 @token_required
 @limiter.limit("100 per minute")
 def get_task(current_user, id):
+    """
+    Get a single task by ID
+    ---
+    tags:
+      - Tasks
+    security:
+      - Bearer: []
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+      - name: id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Task details
+      404:
+        description: Task not found or unauthorized
+    """
     # Enforce at DB query level
     task = current_user.tasks.filter_by(id=id).first_or_404(description='Task not found or unauthorized')
     
@@ -86,6 +154,40 @@ def get_task(current_user, id):
 @token_required
 @limiter.limit("100 per minute")
 def update_task(current_user, id):
+    """
+    Update an existing task
+    ---
+    tags:
+      - Tasks
+    security:
+      - Bearer: []
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+      - name: id
+        in: path
+        type: integer
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            title:
+              type: string
+            description:
+              type: string
+            status:
+              type: string
+    responses:
+      200:
+        description: Task updated
+      404:
+        description: Task not found
+    """
     # Enforce at DB query level
     task = current_user.tasks.filter_by(id=id).first_or_404(description='Task not found or unauthorized')
     
@@ -119,6 +221,28 @@ def update_task(current_user, id):
 @token_required
 @limiter.limit("100 per minute")
 def delete_task(current_user, id):
+    """
+    Delete a task
+    ---
+    tags:
+      - Tasks
+    security:
+      - Bearer: []
+    parameters:
+      - name: Authorization
+        in: header
+        type: string
+        required: true
+      - name: id
+        in: path
+        type: integer
+        required: true
+    responses:
+      200:
+        description: Task deleted
+      404:
+        description: Task not found
+    """
     # Enforce at DB query level
     task = current_user.tasks.filter_by(id=id).first_or_404(description='Task not found or unauthorized')
         
