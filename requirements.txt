@@ -1,0 +1,9 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-Mail
+Flask-Limiter
+PyJWT
+python-dotenv
+email-validator
+requests
