@@ -1,0 +1,166 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{times}
+
+\geometry{top=1in, bottom=1in, left=1in, right=1in}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{Secure Task Orchestrator (Flask) \\ \large Architecture & Implementation Report}
+\author{Assignment Submission}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Project Overview}
+This report documents the design and implementation of the \textbf{Secure Task Orchestrator}, a production-grade RESTful API built with Flask. The application enables users to manage personal tasks securely, featuring a password-less Email-OTP authentication flow, JWT-based session management, and strict resource-level authorization.
+
+\section{System Architecture}
+
+\subsection{Design Pattern: Application Factory}
+The project adopts the \textbf{Application Factory Pattern} (implemented in \texttt{app/\_\_init\_\_.py}). This approach allows for:
+\begin{itemize}
+    \item \textbf{Scalability}: Multiple instances of the application can be created with different configurations (e.g., Development, Testing, Production).
+    \item \textbf{Modularity}: Extensions like \texttt{SQLAlchemy}, \texttt{Migrate}, and \texttt{Limiter} are initialized globally but bound to the app context dynamically.
+    \item \textbf{Testing}: It simplifies writing unit tests by allowing a fresh app instance for each test case.
+\end{itemize}
+
+\subsection{Modular Structure with Blueprints}
+To maintain a clean and manageable codebase, the application logic is segregated into \textbf{Blueprints}:
+\begin{itemize}
+    \item \textbf{Auth Blueprint} (\texttt{app/auth}): Handles all authentication logic, including OTP generation, email dispatch, verification, and token issuance.
+    \item \textbf{Tasks Blueprint} (\texttt{app/tasks}): Manages CRUD operations for tasks, ensuring separation of concerns between user management and resource management.
+\end{itemize}
+
+\subsection{Directory Structure}
+The project follows a standard operational structure:
+\begin{lstlisting}[language=bash]
+assignment/
+|-- app/
+|   |-- __init__.py        # App factory
+|   |-- extensions.py      # Extension initialization
+|   |-- models.py          # Database models
+|   |-- auth/              # Authentication module
+|   |-- tasks/             # Task management module
+|   |-- middleware/        # Custom decorators & error handlers
+|-- config.py              # Configuration classes
+|-- run.py                 # Entry point
+|-- requirements.txt       # Dependencies
+|-- .env                   # Environment variables (Secrets)
+\end{lstlisting}
+
+\section{Database Design}
+The application uses \textbf{SQLAlchemy} as the ORM and \textbf{SQLite} for development (easily swappable for PostgreSQL/MySQL via configuration).
+
+\subsection{Schema Overview}
+\begin{enumerate}
+    \item \textbf{User Table}: Stores user identity. Crucially, it does \textit{not} store passwords. Instead, it stores a hashed version of the temporary OTP and its expiry time.
+    \item \textbf{Task Table}: standardized task attributes (Title, Description, Status, Timestamp). It has a Foreign Key linking to the \texttt{User} table to establish ownership.
+    \item \textbf{ActivityLog Table}: An audit trail recording critical actions (Login, Task Creation, etc.) for security monitoring and compliance.
+\end{enumerate}
+
+\begin{lstlisting}[language=Python, caption=User Model Snippet]
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    tasks = db.relationship('Task', backref='author', lazy='dynamic')
+    otp_hash = db.Column(db.String(128)) # Secure storage
+    otp_expiry = db.Column(db.DateTime)
+\end{lstlisting}
+
+\section{Security Implementation}
+
+\subsection{Authentication Strategy (Email-OTP)}
+Traditional passwords are replaced with a secure One-Time Password (OTP) flow to enhance security and user experience.
+\begin{itemize}
+    \item \textbf{Generation}: A 6-digit cryptographically secure random number is generated.
+    \item \textbf{Storage}: The OTP is hashed using SHA-256 before storage, ensuring that even database administrators cannot see active OTPs.
+    \item \textbf{Expiry}: OTPs have a strict 5-minute lifetime.
+\end{itemize}
+
+\subsection{Session Management (JWT)}
+Upon successful OTP verification, the server issues two tokens:
+\begin{itemize}
+    \item \textbf{Access Token}: Short-lived (15 minutes) for API access.
+    \item \textbf{Refresh Token}: Long-lived (7 days) to acquire new access tokens without re-authentication.
+\end{itemize}
+
+\subsection{Rate Limiting}
+To prevent abuse and brute-force attacks, \texttt{Flask-Limiter} is employed:
+\begin{itemize}
+    \item \textbf{OTP Requests}: Strict limit of 3 requests per 10 minutes per email address.
+    \item \textbf{API Calls}: General limit of 100 requests per minute per user.
+\end{itemize}
+
+\subsection{Resource Authorization}
+Authorization is enforced at the \textbf{Query Level}. Middleware ensures that a user can only query or modify tasks associated with their own User ID.
+\begin{lstlisting}[language=Python, caption=Query-Level Authorization]
+# Instead of fetching and checking:
+# task = Task.query.get(id)
+# if task.owner != user: raise Error
+
+# We filter directly:
+task = current_user.tasks.filter_by(id=id).first_or_404()
+\end{lstlisting}
+
+\section{Assumptions \& Constraints}
+\begin{enumerate}
+    \item \textbf{Auto-Registration}: The system assumes that if a user requests an OTP for a non-existent email, they intend to register. Thus, new users are automatically created upon the first valid OTP request.
+    \item \textbf{SMTP Availability}: It is assumed that the deployment environment has outbound SMTP access (e.g., Gmail SMTP or SendGrid) configured via \texttt{.env}.
+    \item \textbf{Token Storage}: The client (frontend) is responsible for securely storing the JWTs (e.g., in HttpOnly cookies or secure local storage).
+    \item \textbf{Single Device}: The current Refresh Token implementation does not explicitly track device fingerprints, meaning a refresh token is valid from any client until expiry.
+\end{enumerate}
+
+\section{API Documentation}
+
+\subsection{Auth Endpoints}
+\begin{itemize}
+    \item \texttt{POST /auth/otp/request}: Initiates the login flow.
+    \item \texttt{POST /auth/otp/verify}: Exchanges OTP for JWTs.
+    \item \texttt{POST /auth/refresh}: Refreshes the Access Token.
+\end{itemize}
+
+\subsection{Task Endpoints}
+All task endpoints require the \texttt{Authorization: Bearer <token>} header.
+\begin{itemize}
+    \item \texttt{GET /tasks/}: Retrieve all tasks for the current user.
+    \item \texttt{POST /tasks/}: Create a new task.
+    \item \texttt{PUT /tasks/<id>}: Update an existing task.
+    \item \texttt{DELETE /tasks/<id>}: Remove a task.
+\end{itemize}
+
+\end{document}
